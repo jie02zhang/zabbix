@@ -165,5 +165,7 @@ if __name__ == "__main__":
 
     print("\n创建结果:")
     for res in results:
-        status_icon = "✅" if res["status"] == "success" else "❌"
-        print(f"{status_icon} {res['host']}: {res.get('message', '创建成功')}")
+        status_icon = "✅" if res.get("status") == "success" else "❌"
+        host = res.get('host', '未知主机')
+        message = res.get('message', '创建成功')
+        print(f"{status_icon} {host}: {message}")
