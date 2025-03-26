@@ -34,14 +34,14 @@ class ExportHostManagement:
             --tag-name="APP_ID" --tag-value="A02205"
         返回字段包括：
             主机ID、主机名称、可见名称、是否启用、IP地址、接口类型、
-            主机组、关联模板、代理名称、触发器描述、标签列表
+            主机组、关联模板、代理名称、触发器描述、标签列表、APP_ID
         """
         params = {
             "output": ["hostid", "host", "name", "status", "proxy_hostid"],
             "selectInterfaces": ["ip", "type"],
             "selectGroups": ["name"],
             "selectParentTemplates": ["name"],
-            "selectTriggers": ["description"],
+            "selectTriggers": ["triggerid", "description"],
             "selectTags": ["tag", "value"],
         }
 
@@ -75,20 +75,11 @@ class ExportHostManagement:
         tag_name: Optional[str],
         tag_value: Optional[str]
     ) -> List[Dict[str, Any]]:
-        """
-        处理主机数据，格式化返回字段：
-          - 主机组、关联模板、标签列表均以列表返回
-          - 代理名称通过 proxy_hostid 查询得到，并以列表返回（查不到则为空列表）
-          - 触发器描述返回所有触发器描述的列表
-        对于传入 tag_name 与 tag_value，会先过滤主机列表，仅返回匹配的记录
-        """
         processed_hosts = []
         for host in raw_hosts:
-            # 通过主机 tag 信息进行过滤（当指定 tag_name 与 tag_value 时）
             if not self._filter_by_tag(host, tag_name, tag_value):
                 continue
 
-            # 处理接口信息
             interface = host.get("interfaces", [{}])[0]
             ip_address = interface.get("ip", "N/A")
             interface_type = (
@@ -97,17 +88,24 @@ class ExportHostManagement:
                 else "N/A"
             )
 
-            # 处理触发器描述（以列表形式返回）
             triggers = host.get("triggers", [])
-            trigger_descriptions = (
-                [t.get("description", "N/A") for t in triggers] if triggers else ["N/A"]
+            # 触发器描述以 JSON 格式返回，确保中文不被转义
+            trigger_descriptions = json.dumps(
+                {t.get("triggerid", "N/A"): t.get("description", "N/A") for t in triggers},
+                ensure_ascii=False
             )
 
             groups = [g["name"] for g in host.get("groups", [])]
             templates = [t["name"] for t in host.get("parentTemplates", [])]
             tags = [f"{t['tag']}:{t['value']}" for t in host.get("tags", [])]
 
-            # 根据 host.get 返回的 proxy_hostid 查询代理信息（使用缓存）
+            # 从 tags 中提取 APP_ID 值
+            app_id = ""
+            for t in host.get("tags", []):
+                if t.get("tag") == "APP_ID":
+                    app_id = t.get("value", "")
+                    break
+
             proxy_hostid = host.get("proxy_hostid")
             if proxy_hostid:
                 if proxy_hostid in self.proxy_cache:
@@ -130,7 +128,8 @@ class ExportHostManagement:
                 "关联模板": templates,
                 "代理名称": [proxy_name_value] if proxy_name_value != "N/A" else [],
                 "触发器描述": trigger_descriptions,
-                "标签列表": tags
+                "标签列表": tags,
+                "APP_ID": app_id
             })
         return processed_hosts
 
@@ -162,7 +161,7 @@ class ExportHostManagement:
             "selectInterfaces": ["ip", "type"],
             "selectGroups": ["name"],
             "selectParentTemplates": ["name"],
-            "selectTriggers": ["description"],
+            "selectTriggers": ["triggerid", "description"],
             "selectTags": ["tag", "value"],
             "filter": {"parentTemplates": template_names},
         }
@@ -187,9 +186,17 @@ class ExportHostManagement:
         templates = [t["name"] for t in host.get("parentTemplates", [])]
         tags = [f"{t['tag']}:{t['value']}" for t in host.get("tags", [])]
         triggers = host.get("triggers", [])
-        trigger_descriptions = (
-            [t.get("description", "N/A") for t in triggers] if triggers else ["N/A"]
+        trigger_descriptions = json.dumps(
+            {t.get("triggerid", "N/A"): t.get("description", "N/A") for t in triggers},
+            ensure_ascii=False
         )
+        # 提取 APP_ID 值
+        app_id = ""
+        for t in host.get("tags", []):
+            if t.get("tag") == "APP_ID":
+                app_id = t.get("value", "")
+                break
+
         proxy_hostid = host.get("proxy_hostid")
         if proxy_hostid:
             if proxy_hostid in self.proxy_cache:
@@ -212,5 +219,6 @@ class ExportHostManagement:
             "关联模板": templates,
             "代理名称": [proxy_name_value] if proxy_name_value != "N/A" else [],
             "触发器描述": trigger_descriptions,
-            "标签列表": tags
+            "标签列表": tags,
+            "APP_ID": app_id
         }
