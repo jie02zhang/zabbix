@@ -19,7 +19,7 @@ class Proxy:
         try:
             params = {
                 "filter": {"host": agent_name},  
-                "output": ["proxyid", "host"]
+                "output": ["proxyid", "host","proxy_address"]
             }
             response = self.zabbix_api.call_api("proxy.get", params)
 
@@ -27,7 +27,8 @@ class Proxy:
                 proxy_info = {
                     "agent_name": agent_name,
                     "proxy_id": response["result"][0]["proxyid"],
-                    "host": response["result"][0]["host"]
+                    "host": response["result"][0]["host"],
+                    "proxy_address": response["result"][0]["proxy_address"]
                 }
                 return json.dumps(proxy_info, indent=4)  # 美化输出 JSON
             else:
@@ -36,9 +37,9 @@ class Proxy:
             print(f"Error retrieving proxy info: {e}")
             return json.dumps({}, indent=4)  # 出错时返回空 JSON
 
-# # 调用示例
-# if __name__ == "__main__":
-#     proxy = Proxy()
-#     agent_name = "Proxy_JY_RD001"  # 需要查询的代理名称
-#     proxy_info_json = proxy.get_proxy_info(agent_name)
-#     print(f"Proxy Info: {proxy_info_json}")
+# 调用示例
+if __name__ == "__main__":
+    proxy = Proxy()
+    agent_name = "Proxy_JY_RD001"  # 需要查询的代理名称
+    proxy_info_json = proxy.get_proxy_info(agent_name)
+    print(f"Proxy Info: {proxy_info_json}")
