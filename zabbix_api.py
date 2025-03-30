@@ -4,7 +4,7 @@ import logging
 from config import ZABBIX_URL, ZABBIX_USER, ZABBIX_PASSWORD
 
 # 设置日志记录
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ZabbixAPIException(Exception):

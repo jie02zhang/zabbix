@@ -4,7 +4,7 @@ from pytz import timezone  # 导入pytz模块，用于时区处理
 from zabbix_api import ZabbixAPI  # 导入zabbix_api模块，用于与Zabbix进行API交互
 
 # 自定义维护名称前缀，可以根据需要修改
-MAINTENANCE_NAME_PREFIX = "Windows维护"  # 维护模式的名称前缀，用于区分不同的维护任务
+MAINTENANCE_NAME_PREFIX = "网络维护"  # 维护模式的名称前缀，用于区分不同的维护任务
 
 class Maintenance:
     def __init__(self):
