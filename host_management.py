@@ -19,7 +19,6 @@ class ExportHostManagement:
             logging.error(f"Zabbix API 登录失败: {str(e)}")
             raise
         self.proxy = Proxy()
-        # 增加代理信息缓存，避免重复调用接口
         self.proxy_cache = {}
 
     def get_host_info(
@@ -28,24 +27,15 @@ class ExportHostManagement:
         tag_name: Optional[str] = None,
         tag_value: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        获取主机信息，支持通过代理名称与主机 tag 信息进行过滤：
-            --proxy-name="xxx" 
-            --tag-name="APP_ID" --tag-value="A02205"
-        返回字段包括：
-            主机ID、主机名称、可见名称、是否启用、IP地址、接口类型、
-            主机组、关联模板、代理名称、触发器描述、标签列表、APP_ID
-        """
         params = {
             "output": ["hostid", "host", "name", "status", "proxy_hostid"],
             "selectInterfaces": ["ip", "type"],
             "selectGroups": ["name"],
             "selectParentTemplates": ["name"],
-            "selectTriggers": ["triggerid", "description"],
+            "selectTriggers": ["description", "status"],
             "selectTags": ["tag", "value"],
         }
 
-        # 如果传入了 proxy_name，则先查询代理信息获取 proxy_id，再过滤主机
         if proxy_name:
             try:
                 proxy_info = json.loads(self.proxy.get_proxy_info(proxy_name))
@@ -82,16 +72,11 @@ class ExportHostManagement:
 
             interface = host.get("interfaces", [{}])[0]
             ip_address = interface.get("ip", "N/A")
-            interface_type = (
-                "Agent" if interface.get("type") == "1"
-                else "SNMP" if interface.get("type") == "2"
-                else "N/A"
-            )
+            interface_type = "Agent" if interface.get("type") == "1" else "SNMP" if interface.get("type") == "2" else "N/A"
 
             triggers = host.get("triggers", [])
-            # 触发器描述以 JSON 格式返回，确保中文不被转义
             trigger_descriptions = json.dumps(
-                {t.get("triggerid", "N/A"): t.get("description", "N/A") for t in triggers},
+                {t.get("description", "N/A"): "启用" if t.get("status") == "0" else "禁用" for t in triggers},
                 ensure_ascii=False
             )
 
@@ -99,23 +84,10 @@ class ExportHostManagement:
             templates = [t["name"] for t in host.get("parentTemplates", [])]
             tags = [f"{t['tag']}:{t['value']}" for t in host.get("tags", [])]
 
-            # 从 tags 中提取 APP_ID 值
-            app_id = ""
-            for t in host.get("tags", []):
-                if t.get("tag") == "APP_ID":
-                    app_id = t.get("value", "")
-                    break
+            app_id = next((t.get("value", "") for t in host.get("tags", []) if t.get("tag") == "APP_ID"), "")
 
             proxy_hostid = host.get("proxy_hostid")
-            if proxy_hostid:
-                if proxy_hostid in self.proxy_cache:
-                    proxy_info = self.proxy_cache[proxy_hostid]
-                else:
-                    proxy_info = self.proxy.get_proxy_info_by_id(proxy_hostid)
-                    self.proxy_cache[proxy_hostid] = proxy_info
-                proxy_name_value = proxy_info.get("host", "N/A") if proxy_info else "N/A"
-            else:
-                proxy_name_value = "N/A"
+            proxy_name_value = self._get_proxy_name(proxy_hostid)
 
             processed_hosts.append({
                 "主机ID": host.get("hostid", "N/A"),
@@ -133,17 +105,22 @@ class ExportHostManagement:
             })
         return processed_hosts
 
+    def _get_proxy_name(self, proxy_hostid: Optional[str]) -> str:
+        if not proxy_hostid:
+            return "N/A"
+        if proxy_hostid in self.proxy_cache:
+            proxy_info = self.proxy_cache[proxy_hostid]
+        else:
+            proxy_info = self.proxy.get_proxy_info_by_id(proxy_hostid)
+            self.proxy_cache[proxy_hostid] = proxy_info
+        return proxy_info.get("host", "N/A") if proxy_info else "N/A"
+
     def _filter_by_tag(
         self,
         host: Dict[str, Any],
         tag_name: Optional[str],
         tag_value: Optional[str]
     ) -> bool:
-        """
-        当 tag_name 与 tag_value 均存在时，
-        检查主机的 tags 列表是否存在匹配的记录；
-        如果任一参数未提供，则不过滤
-        """
         if not tag_name or not tag_value:
             return True
         return any(
