@@ -172,8 +172,8 @@ if __name__ == "__main__":
     try:
         exporter = ExportDiskUsed()
         success = exporter.get_daily_disk_peak(
-            start_date_str="20250323",
-            end_date_str="20250324",
+            start_date_str="20250416",
+            end_date_str="20250416",
             output_file=r"C:\software\daily_disk_peak.xlsx"
         )
         print("操作成功完成" if success else "操作未完成，请检查日志")
