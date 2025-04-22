@@ -12,17 +12,24 @@ class Hostgroup:
             "output": ["groupid", "name"]
         }
         response = self.zabbix_api.call_api("hostgroup.get", params)
-        # … 原有逻辑 …
+        if response.get("result"):
+            group_info = {
+                "group_id": response["result"][0]["groupid"],
+                "name": response["result"][0]["name"]
+            }
+            return json.dumps(group_info, indent=4, ensure_ascii=False)
+        else:
+            return json.dumps({}, ensure_ascii=False)
 
     def massupdate(self, params):
         """
-        将指定 IP 的主机添加到指定的 Zabbix 主机组中。
+        将指定主机添加到指定 Zabbix 主机组中。
         params: {
-            "ip": "10.86.x.x",
-            "group": "组名"
+            "hostname": "my-host-name",
+            "group": "TargetGroup"
         }
         """
-        ip = params.get("ip")
+        hostname = params.get("hostname")
         group_name = params.get("group")
 
         # 1. 获取主机组 ID
@@ -32,15 +39,14 @@ class Hostgroup:
         })
         groupid = group_resp["result"][0]["groupid"]  # :contentReference[oaicite:3]{index=3}
 
-        # 2. 获取主机 ID（通过接口 IP）
-        iface_resp = self.zabbix_api.call_api("hostinterface.get", {
-            "output": ["interfaceid"],
-            "filter": {"ip": ip},
-            "selectHosts": ["hostid"]
+        # 2. 获取主机 ID（通过主机名）
+        host_resp = self.zabbix_api.call_api("host.get", {
+            "filter": {"host": [hostname]},
+            "output": ["hostid"]
         })
-        hostid = iface_resp["result"][0]["hosts"][0]["hostid"]  # :contentReference[oaicite:4]{index=4}
+        hostid = host_resp["result"][0]["hostid"]  # :contentReference[oaicite:4]{index=4}
 
-        # 3. 调用 host.massadd，将主机添加到组中
+        # 3. 调用 host.massadd，将主机添加到主机组中
         add_resp = self.zabbix_api.call_api("host.massadd", {
             "hosts": [{"hostid": hostid}],
             "groups": [{"groupid": groupid}]
