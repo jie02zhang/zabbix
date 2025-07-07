@@ -52,8 +52,8 @@ class ExportHostData:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Zabbix主机数据导出工具")
-    parser.add_argument("--output", default=r"C:\software\应用系统监控管理-Zabbix-03.xlsx",
-                        help="输出文件路径（默认：C:\\software\\应用系统监控管理-Zabbix-03.xlsx）")
+    parser.add_argument("--output", default=r"C:\software\应用系统监控管理-Zabbix-06.xlsx",
+                        help="输出文件路径（默认：C:\\software\\应用系统监控管理-Zabbix-06.xlsx）")
     parser.add_argument("--proxy", help="按代理名称过滤（示例：Proxy_JY_RD001）")
     parser.add_argument("--tag-name", help="标签名称（需配合--tag-value使用）")
     parser.add_argument("--tag-value", help="标签值（需配合--tag-name使用）")
